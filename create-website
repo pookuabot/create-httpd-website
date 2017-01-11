@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# Title		    : create-website
+# Description	  : This script will create a new website by creating the website directory and adding it to vhost.conf.  This will create a test site as well.
+# Author	    : Pookuabot
+
+# Name of website that will be added to web directory and vhost.conf
+read -p "What is the new website name? " site
+
+# Creates website directories
+mkdir /opt/websites/public/$site
+
+# Adds jenkins as owner of website directories
+chown jenkins /opt/websites/public/$site
+
+# Creates non-SSL virtual host for $site
+cat <<EOT > /etc/httpd/conf.d/virtuals/$site.conf
+# SSL for $site
+<VirtualHost *:80>
+    ServerName $site
+    DocumentRoot /opt/websites/public/$site
+
+    # Force Redirect HTTP to HTTPS
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</VirtualHost>
+EOT
+
+# Restarts HTTPD
+systemctl restart httpd
+
+# Creates an SSL cert for $site using letsencrypt
+certbot --apache -d $site
+
+# Creates SSL virtual host for $site
+cat <<EOT >> /etc/httpd/conf.d/virtuals/$site.conf
+
+# Add SSL for $site
+<VirtualHost *:443>
+    ServerName $site
+    DocumentRoot /opt/websites/public/$site
+</VirtualHost>
+EOT
+
+# Removes last line of file
+sed -i '$ d' /etc/httpd/conf.d/virtuals/$site.conf
+
+# Adds SSL to end of file
+cat <<EOT >> /etc/httpd/conf.d/virtuals/$site.conf
+
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/$site/cert.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/$site/privkey.pem
+    SSLCertificateChainFile /etc/letsencrypt/live/$site/chain.pem
+</VirtualHost>
+EOT
+
+# remove $site-le-ssl.conf
+rm -f /etc/httpd/conf.d/virtuals/$site-le-ssl.conf
+
+# Restarts HTTPD
+systemctl restart httpd
+
+# Adds line break
+echo $'\n'
+
+# Notify when the new test site is created.
+echo "Both $site and SSL Cert were created and HTTPD was restarted."
