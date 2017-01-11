@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Title		    : create-website
-# Description	  : This script will create a new website by creating the website directory and adding it to vhost.conf.  This will create a test site as well.
+# Description	: This script will create a new website by creating the website directory and adding it to vhost.conf.  This will create a test site as well.
 # Author	    : Pookuabot
 
 # Name of website that will be added to web directory and vhost.conf
